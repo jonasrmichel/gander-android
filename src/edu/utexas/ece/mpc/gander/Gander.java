@@ -14,30 +14,66 @@ import android.os.Build;
 
 import com.tinkerpop.blueprints.Graph;
 
+import edu.utexas.ece.mpc.gander.adapters.NetworkAdapter;
 import edu.utexas.ece.mpc.gander.location.LocationHelper;
+import edu.utexas.ece.mpc.gander.network.NetworkInputListener;
+import edu.utexas.ece.mpc.gander.network.NetworkOutput;
 
-public class Gander implements IContextProvider, INetworkProvider {
+public abstract class Gander<T, N> implements IContextProvider,
+		INetworkProvider, NetworkInputListener<T> {
+
+	/** An Android Context. */
+	protected Context mContext;
 
 	/** A delegate to make callbacks on. */
-	private Delegate mDelegate;
+	protected GanderDelegate<T> mDelegate;
 
-	public static interface Delegate {
+	/** Network output interface. */
+	protected NetworkOutput<T> mNetworkOutput;
 
-		/**
-		 * Called to obtain an Android Context.
-		 * 
-		 * @return the Gander middleware's Android Context.
-		 */
-		public Context getContext();
-	}
+	/** Network adapter interface for (de)serialization. */
+	protected NetworkAdapter<T, N> mNetworkAdapter;
 
 	/** A geographic location helper. */
-	private LocationHelper mLocationHelper;
+	protected LocationHelper mLocationHelper;
 
-	public Gander(Delegate delegate) {
+	/**
+	 * TODO: How is data passed to/from here? - content values + adapter - typed
+	 * class - typed class with VertexFrame mirror
+	 */
+
+	public Gander(Context context, GanderDelegate<T> delegate,
+			NetworkOutput<T> networkOutput, NetworkAdapter<T, N> networkAdapter) {
+		mContext = context;
 		mDelegate = delegate;
-		mLocationHelper = LocationHelper.getInstance(delegate.getContext());
+		mNetworkOutput = networkOutput;
+		mNetworkAdapter = networkAdapter;
+		mLocationHelper = LocationHelper.getInstance(context);
 	}
+
+	public void sendData(T data) {
+		mNetworkOutput.sendData(data);
+	}
+
+	/* IContextProvider interface implementation */
+
+	@Override
+	public Geoshape getLocation() {
+		Location loc = mLocationHelper.getLocation();
+		return Geoshape.point(loc.getLatitude(), loc.getLongitude());
+	}
+
+	@Override
+	public long getTimestamp() {
+		return System.currentTimeMillis();
+	}
+
+	@Override
+	public String getDomain() {
+		return Build.SERIAL;
+	}
+
+	/* INetworkProvider interface implementation */
 
 	@Override
 	public void send(Datum datum, Iterator<SpaceTimePosition> trajectory) {
@@ -54,23 +90,6 @@ public class Gander implements IContextProvider, INetworkProvider {
 	@Override
 	public void send(Graph graph) {
 		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public Geoshape getLocation() {
-		Location loc = mLocationHelper.getLocation();
-		return Geoshape.point(loc.getLatitude(), loc.getLongitude());
-	}
-
-	@Override
-	public long getTimestamp() {
-		return System.currentTimeMillis();
-	}
-
-	@Override
-	public String getDomain() {
-		return Build.SERIAL;
 	}
 
 }
