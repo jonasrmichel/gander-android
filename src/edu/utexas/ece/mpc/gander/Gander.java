@@ -4,13 +4,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-import stdata.IContextProvider;
-import stdata.INetworkProvider;
-import stdata.datamodel.SpatiotemporalDatabase;
-import stdata.datamodel.vertices.Datum;
-import stdata.datamodel.vertices.SpaceTimePosition;
-import stdata.geo.Geoshape;
-import stdata.rules.Rule;
 import android.content.Context;
 import android.location.Location;
 import android.os.Build;
@@ -21,6 +14,13 @@ import edu.utexas.ece.mpc.gander.adapters.NetworkAdapter;
 import edu.utexas.ece.mpc.gander.location.LocationHelper;
 import edu.utexas.ece.mpc.gander.network.NetworkInputListener;
 import edu.utexas.ece.mpc.gander.network.NetworkOutput;
+import edu.utexas.ece.mpc.stdata.IContextProvider;
+import edu.utexas.ece.mpc.stdata.INetworkProvider;
+import edu.utexas.ece.mpc.stdata.SpatiotemporalDatabase;
+import edu.utexas.ece.mpc.stdata.geo.Geoshape;
+import edu.utexas.ece.mpc.stdata.rules.Rule;
+import edu.utexas.ece.mpc.stdata.vertices.Datum;
+import edu.utexas.ece.mpc.stdata.vertices.SpaceTimePosition;
 
 public abstract class Gander implements IContextProvider, INetworkProvider,
 		NetworkInputListener {
@@ -98,15 +98,15 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 	public <T> void sendData(Class<T> type, T data) {
 		mNetworkOutput.sendData(type, data);
 	}
-	
+
 	public <T> void sendData(Class<T> type, T data, Rule rule) {
 		// TODO
 	}
-	
+
 	public <T> void storeData(Class<T> type, T data) {
 		// TODO
 	}
-	
+
 	public <T> void storeData(Class<T> type, T data, Rule rule) {
 		// TODO
 	}

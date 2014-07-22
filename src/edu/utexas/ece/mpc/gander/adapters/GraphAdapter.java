@@ -1,6 +1,6 @@
 package edu.utexas.ece.mpc.gander.adapters;
 
-import stdata.datamodel.vertices.Datum;
+import edu.utexas.ece.mpc.stdata.vertices.Datum;
 
 public interface GraphAdapter<T, V extends Datum> {
 
