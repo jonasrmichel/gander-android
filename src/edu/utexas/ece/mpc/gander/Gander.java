@@ -10,12 +10,12 @@ import stdata.datamodel.SpatiotemporalDatabase;
 import stdata.datamodel.vertices.Datum;
 import stdata.datamodel.vertices.SpaceTimePosition;
 import stdata.geo.Geoshape;
+import stdata.rules.Rule;
 import android.content.Context;
 import android.location.Location;
 import android.os.Build;
 
 import com.tinkerpop.blueprints.Graph;
-import com.tinkerpop.gremlin.Tokens.T;
 
 import edu.utexas.ece.mpc.gander.adapters.NetworkAdapter;
 import edu.utexas.ece.mpc.gander.location.LocationHelper;
@@ -97,6 +97,18 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 	 */
 	public <T> void sendData(Class<T> type, T data) {
 		mNetworkOutput.sendData(type, data);
+	}
+	
+	public <T> void sendData(Class<T> type, T data, Rule rule) {
+		// TODO
+	}
+	
+	public <T> void storeData(Class<T> type, T data) {
+		// TODO
+	}
+	
+	public <T> void storeData(Class<T> type, T data, Rule rule) {
+		// TODO
 	}
 
 	// TODO public <F extends VertexFrame> void addVertexFactory(Class<F> type,
