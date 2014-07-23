@@ -10,8 +10,8 @@ import android.os.Build;
 
 import com.tinkerpop.blueprints.Graph;
 
-import edu.utexas.ece.mpc.gander.adapters.GraphAdapter;
-import edu.utexas.ece.mpc.gander.adapters.NetworkAdapter;
+import edu.utexas.ece.mpc.gander.adapters.IGraphAdapter;
+import edu.utexas.ece.mpc.gander.adapters.INetworkAdapter;
 import edu.utexas.ece.mpc.gander.location.LocationHelper;
 import edu.utexas.ece.mpc.gander.network.NetworkInputListener;
 import edu.utexas.ece.mpc.gander.network.NetworkOutput;
@@ -37,10 +37,10 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 	protected NetworkOutput mNetworkOutput;
 
 	/** Map of network adapters for (de)serialization of network I/O. */
-	protected Map<Class, NetworkAdapter> mNetworkAdapters;
+	protected Map<Class, INetworkAdapter> mNetworkAdapters;
 
 	/** Map of graph adapters for (de)serialization of graph I/O. */
-	protected Map<Class, GraphAdapter> mGraphAdapters;
+	protected Map<Class, IGraphAdapter> mGraphAdapters;
 
 	/** A geographic location helper. */
 	protected LocationHelper mLocationHelper;
@@ -52,7 +52,7 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 	protected SpatiotemporalDatabase mSTDB;
 
 	public Gander(Context context, GanderDelegate delegate,
-			NetworkOutput networkOutput, NetworkAdapter... networkAdapters) {
+			NetworkOutput networkOutput, INetworkAdapter... networkAdapters) {
 		mContext = context;
 		mDelegate = delegate;
 
@@ -64,7 +64,7 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 		mLocationHelper = LocationHelper.getInstance(context);
 
 		if (networkAdapters != null) {
-			for (NetworkAdapter adapter : networkAdapters)
+			for (INetworkAdapter adapter : networkAdapters)
 				addNetworkAdapter(adapter);
 		}
 
@@ -82,9 +82,9 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 	 * @param adapter
 	 *            a network adapter.
 	 */
-	public void addNetworkAdapter(NetworkAdapter adapter) {
+	public void addNetworkAdapter(INetworkAdapter adapter) {
 		if (mNetworkAdapters == null)
-			mNetworkAdapters = new HashMap<Class, NetworkAdapter>();
+			mNetworkAdapters = new HashMap<Class, INetworkAdapter>();
 
 		// insert a reference to the adapter for each adapter type so it may be
 		// looked up by both
@@ -92,14 +92,18 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 		mNetworkAdapters.put(adapter.getNetworkDataType(), adapter);
 	}
 
-	public void addGraphAdapter(GraphAdapter adapter) {
+	public void addGraphAdapter(IGraphAdapter adapter) {
 		if (mGraphAdapters == null)
-			mGraphAdapters = new HashMap<Class, GraphAdapter>();
+			mGraphAdapters = new HashMap<Class, IGraphAdapter>();
 
 		// insert a reference to the adapter for each adapter type so it may be
 		// looked up by both
 		mGraphAdapters.put(adapter.getApplicationDataType(), adapter);
 		mGraphAdapters.put(adapter.getGraphDataType(), adapter);
+
+		// add the adapter's factory to the graph database
+		mSTDB.addVertexFrameFactory(adapter.getGraphDataType(),
+				(VertexFrameFactory) adapter);
 	}
 
 	/**
@@ -143,7 +147,7 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 	 */
 	public <T, D> void storeData(Class<T> type, T data) {
 		// lookup the adapter associated with this data type
-		GraphAdapter adapter = mGraphAdapters.get(type);
+		IGraphAdapter adapter = mGraphAdapters.get(type);
 
 		// create a graph instance of the data
 		adapter.serialize(data);
@@ -162,7 +166,7 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 	 */
 	public <T> void storeData(Class<T> type, T data, Rule rule) {
 		// lookup the adapter associated with this data type
-		GraphAdapter adapter = mGraphAdapters.get(type);
+		IGraphAdapter adapter = mGraphAdapters.get(type);
 
 		// create a graph instance of the data with the associated rule
 		adapter.serialize(data, rule);

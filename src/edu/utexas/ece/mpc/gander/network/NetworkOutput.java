@@ -3,14 +3,14 @@ package edu.utexas.ece.mpc.gander.network;
 import java.util.Map;
 
 import android.content.Context;
-import edu.utexas.ece.mpc.gander.adapters.NetworkAdapter;
+import edu.utexas.ece.mpc.gander.adapters.INetworkAdapter;
 
 public abstract class NetworkOutput {
 
 	protected Context mContext;
 	protected NetworkInputListener mNetworkInputListener;
 
-	protected Map<Class, NetworkAdapter> mAdapters;
+	protected Map<Class, INetworkAdapter> mAdapters;
 
 	public NetworkOutput(Context context) {
 		mContext = context;
@@ -21,7 +21,7 @@ public abstract class NetworkOutput {
 		mNetworkInputListener = networkInputListener;
 	}
 
-	public void setNetworkAdapters(Map<Class, NetworkAdapter> adapters) {
+	public void setNetworkAdapters(Map<Class, INetworkAdapter> adapters) {
 		mAdapters = adapters;
 	}
 
@@ -48,7 +48,7 @@ public abstract class NetworkOutput {
 	 */
 	public <T> void sendData(Class<T> type, T data) {
 		// lookup the network adapter for this type of data
-		NetworkAdapter adapter = mAdapters.get(type);
+		INetworkAdapter adapter = mAdapters.get(type);
 
 		// serialize the data and send it over the network
 		sendData(adapter.serialize(data));
@@ -66,7 +66,7 @@ public abstract class NetworkOutput {
 	 *            the received network data object.
 	 */
 	protected <N> void receivedData(String source, Class<N> type, N data) {
-		NetworkAdapter adapter = mAdapters.get(type);
+		INetworkAdapter adapter = mAdapters.get(type);
 		mNetworkInputListener.receivedData(source, adapter.deserialize(data));
 	}
 }
