@@ -25,4 +25,17 @@ public abstract class GraphAdapter<T, D extends Datum> extends DatumFactory<D>
 		// TODO Auto-generated constructor stub
 	}
 
+	/**
+	 * A serialization helper that should configure the properties of a
+	 * graph-resident instance of this adapter's graph data type to reflect
+	 * those of the provided application data object.
+	 * 
+	 * @param appData
+	 *            an application data object whose properties to use.
+	 * @param graphData
+	 *            a graph-resident datum derivative whose properties to
+	 *            configure.
+	 */
+	protected abstract void configureGraphInstance(T appData, D graphData);
+
 }

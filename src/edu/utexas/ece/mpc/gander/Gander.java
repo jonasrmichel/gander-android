@@ -8,6 +8,7 @@ import android.content.Context;
 import android.location.Location;
 import android.os.Build;
 
+import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
 import com.tinkerpop.blueprints.Graph;
 
 import edu.utexas.ece.mpc.gander.adapters.IGraphAdapter;
@@ -52,23 +53,46 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 	protected SpatiotemporalDatabase mSTDB;
 
 	public Gander(Context context, GanderDelegate delegate,
-			NetworkOutput networkOutput, INetworkAdapter... networkAdapters) {
+			NetworkOutput networkOutput) {
 		mContext = context;
 		mDelegate = delegate;
 
-		// configure the network output interface
 		mNetworkOutput = networkOutput;
 		mNetworkOutput.setNetworkInputListener(this);
 		mNetworkOutput.setNetworkAdapters(mNetworkAdapters);
 
 		mLocationHelper = LocationHelper.getInstance(context);
 
+		initializeSTDatabase();
+	}
+
+	public Gander(Context context, GanderDelegate delegate,
+			NetworkOutput networkOutput, INetworkAdapter networkAdapter,
+			IGraphAdapter graphAdapter) {
+		this(context, delegate, networkOutput);
+
+		if (networkAdapter != null)
+			addNetworkAdapter(networkAdapter);
+
+		if (graphAdapter != null)
+			addGraphAdapter(graphAdapter);
+	}
+
+	public Gander(Context context, GanderDelegate delegate,
+			NetworkOutput networkOutput, INetworkAdapter[] networkAdapters,
+			IGraphAdapter[] graphAdapters) {
+		this(context, delegate, networkOutput);
+
 		if (networkAdapters != null) {
 			for (INetworkAdapter adapter : networkAdapters)
 				addNetworkAdapter(adapter);
 		}
 
-		initializeSTDatabase();
+		if (graphAdapters != null) {
+			for (IGraphAdapter adapter : graphAdapters)
+				addGraphAdapter(adapter);
+		}
+
 	}
 
 	/**
@@ -119,22 +143,22 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 	}
 
 	/**
-	 * Sends a typed piece of application data over the network and attaches a
-	 * rule to the data.
+	 * Sends a typed piece of application data over the network and attaches any
+	 * number of unregistered rules to the data.
 	 * 
 	 * @param type
 	 *            the type of the application data.
 	 * @param data
 	 *            a piece of application data to send.
-	 * @param rule
-	 *            the rule to associate with the data.
+	 * @param rules
+	 *            unregistered rules to associate with the data.
 	 */
-	public <T> void sendData(Class<T> type, T data, Rule rule) {
+	public <T> void sendData(Class<T> type, T data, Rule... rules) {
 		// send the data
 		mNetworkOutput.sendData(type, data);
 
 		// store the data with its associated rule
-		storeData(type, data, rule);
+		storeData(type, data, rules);
 	}
 
 	/**
@@ -155,27 +179,27 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 
 	/**
 	 * Stores a typed piece of application data in the graph database and
-	 * attaches a rule to the data.
+	 * attaches any number of unregistered rules to the data.
 	 * 
 	 * @param type
 	 *            the type of the application data.
 	 * @param data
 	 *            a piece of application data to store.
-	 * @param rule
-	 *            the rule to associate with the data.
+	 * @param rules
+	 *            unregistered rules to associate with the data.
 	 */
-	public <T> void storeData(Class<T> type, T data, Rule rule) {
+	public <T> void storeData(Class<T> type, T data, Rule... rules) {
 		// lookup the adapter associated with this data type
 		IGraphAdapter adapter = mGraphAdapters.get(type);
 
 		// create a graph instance of the data with the associated rule
-		adapter.serialize(data, rule);
+		adapter.serialize(data, rules);
 	}
 
 	/**
 	 * Registers a new rule with the graph database.
 	 * 
-	 * @param rule
+	 * @param rules
 	 *            the rule to register.
 	 */
 	public void registerRule(Rule rule) {

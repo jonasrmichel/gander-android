@@ -37,12 +37,12 @@ public interface IGraphAdapter<T, D extends Datum> extends IDatumFactory<D> {
 	 * 
 	 * @param appData
 	 *            the application data to serialize.
-	 * @param rule
-	 *            a rule to associate with the graph instance of the provided
-	 *            data.
+	 * @param rules
+	 *            unregistered rules to associate with the graph instance of the
+	 *            provided data.
 	 * @return the serialized graph instance of the data object.
 	 */
-	public D serialize(T appData, Rule rule);
+	public D serialize(T appData, Rule... rules);
 
 	/**
 	 * Deserializes a graph data object into a piece of application data.
