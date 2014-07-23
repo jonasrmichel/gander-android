@@ -10,6 +10,7 @@ import android.os.Build;
 
 import com.tinkerpop.blueprints.Graph;
 
+import edu.utexas.ece.mpc.gander.adapters.GraphAdapter;
 import edu.utexas.ece.mpc.gander.adapters.NetworkAdapter;
 import edu.utexas.ece.mpc.gander.location.LocationHelper;
 import edu.utexas.ece.mpc.gander.network.NetworkInputListener;
@@ -17,6 +18,7 @@ import edu.utexas.ece.mpc.gander.network.NetworkOutput;
 import edu.utexas.ece.mpc.stdata.IContextProvider;
 import edu.utexas.ece.mpc.stdata.INetworkProvider;
 import edu.utexas.ece.mpc.stdata.SpatiotemporalDatabase;
+import edu.utexas.ece.mpc.stdata.factories.VertexFrameFactory;
 import edu.utexas.ece.mpc.stdata.geo.Geoshape;
 import edu.utexas.ece.mpc.stdata.rules.Rule;
 import edu.utexas.ece.mpc.stdata.vertices.Datum;
@@ -36,6 +38,9 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 
 	/** Map of network adapters for (de)serialization of network I/O. */
 	protected Map<Class, NetworkAdapter> mNetworkAdapters;
+
+	/** Map of graph adapters for (de)serialization of graph I/O. */
+	protected Map<Class, GraphAdapter> mGraphAdapters;
 
 	/** A geographic location helper. */
 	protected LocationHelper mLocationHelper;
@@ -87,33 +92,91 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 		mNetworkAdapters.put(adapter.getNetworkDataType(), adapter);
 	}
 
+	public void addGraphAdapter(GraphAdapter adapter) {
+		if (mGraphAdapters == null)
+			mGraphAdapters = new HashMap<Class, GraphAdapter>();
+
+		// insert a reference to the adapter for each adapter type so it may be
+		// looked up by both
+		mGraphAdapters.put(adapter.getApplicationDataType(), adapter);
+		mGraphAdapters.put(adapter.getGraphDataType(), adapter);
+	}
+
 	/**
 	 * Sends a typed piece of application data over the network.
 	 * 
 	 * @param type
 	 *            the type of the application data.
 	 * @param data
-	 *            a piece of application data
+	 *            a piece of application data to send.
 	 */
 	public <T> void sendData(Class<T> type, T data) {
 		mNetworkOutput.sendData(type, data);
 	}
 
+	/**
+	 * Sends a typed piece of application data over the network and attaches a
+	 * rule to the data.
+	 * 
+	 * @param type
+	 *            the type of the application data.
+	 * @param data
+	 *            a piece of application data to send.
+	 * @param rule
+	 *            the rule to associate with the data.
+	 */
 	public <T> void sendData(Class<T> type, T data, Rule rule) {
-		// TODO
+		// send the data
+		mNetworkOutput.sendData(type, data);
+
+		// store the data with its associated rule
+		storeData(type, data, rule);
 	}
 
-	public <T> void storeData(Class<T> type, T data) {
-		// TODO
+	/**
+	 * Stores a typed piece of application data in the graph database.
+	 * 
+	 * @param type
+	 *            the type of the application data.
+	 * @param data
+	 *            a piece of application data to store.
+	 */
+	public <T, D> void storeData(Class<T> type, T data) {
+		// lookup the adapter associated with this data type
+		GraphAdapter adapter = mGraphAdapters.get(type);
+
+		// create a graph instance of the data
+		adapter.serialize(data);
 	}
 
+	/**
+	 * Stores a typed piece of application data in the graph database and
+	 * attaches a rule to the data.
+	 * 
+	 * @param type
+	 *            the type of the application data.
+	 * @param data
+	 *            a piece of application data to store.
+	 * @param rule
+	 *            the rule to associate with the data.
+	 */
 	public <T> void storeData(Class<T> type, T data, Rule rule) {
-		// TODO
+		// lookup the adapter associated with this data type
+		GraphAdapter adapter = mGraphAdapters.get(type);
+
+		// create a graph instance of the data with the associated rule
+		adapter.serialize(data, rule);
 	}
 
-	// TODO public <F extends VertexFrame> void addVertexFactory(Class<F> type,
-	// VertexFactory<F> factory)
-	// TODO public <T> void storeData(Class<T> type, T data)
+	/**
+	 * Registers a new rule with the graph database.
+	 * 
+	 * @param rule
+	 *            the rule to register.
+	 */
+	public void registerRule(Rule rule) {
+		mSTDB.getRuleRegistry().registerRule(rule);
+	}
 
 	/* NetworkInputListener interface implementation */
 
