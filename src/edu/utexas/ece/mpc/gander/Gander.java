@@ -8,7 +8,6 @@ import android.content.Context;
 import android.location.Location;
 import android.os.Build;
 
-import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
 import com.tinkerpop.blueprints.Graph;
 
 import edu.utexas.ece.mpc.gander.adapters.IGraphAdapter;
@@ -51,6 +50,9 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 	 * device-to-device searches.
 	 */
 	protected SpatiotemporalDatabase mSTDB;
+
+	// TODO context update timertask (how often do we update our notion of space
+	// and time)
 
 	public Gander(Context context, GanderDelegate delegate,
 			NetworkOutput networkOutput) {
@@ -170,7 +172,7 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 	 *            a piece of application data to store.
 	 */
 	public <T, D> void storeData(Class<T> type, T data) {
-		// lookup the adapter associated with this data type
+		// lookup the graph adapter associated with this data type
 		IGraphAdapter adapter = mGraphAdapters.get(type);
 
 		// create a graph instance of the data
@@ -189,7 +191,7 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 	 *            unregistered rules to associate with the data.
 	 */
 	public <T> void storeData(Class<T> type, T data, Rule... rules) {
-		// lookup the adapter associated with this data type
+		// lookup the graph adapter associated with this data type
 		IGraphAdapter adapter = mGraphAdapters.get(type);
 
 		// create a graph instance of the data with the associated rule
@@ -234,13 +236,34 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 	/* INetworkProvider interface implementation */
 
 	@Override
-	public void send(Datum datum, Iterator<SpaceTimePosition> trajectory) {
+	public <D extends Datum> void send(Class<D> type, D datum) {
+		// lookup the graph adapter associated with this graph data type
+		IGraphAdapter adapter = mGraphAdapters.get(type);
+
+		// deserialize the graph data into application data
+		Object data = adapter.deserialize(datum);
+
+		// TODO acquire spatiotemporal metadata?
+		
+		// send the data over the network
+		sendData(adapter.getApplicationDataType(), data);
+	}
+
+	@Override
+	public <D extends Datum> void send(Class<D> type, D datum, boolean attachTrajectory) {
 		// TODO Auto-generated method stub
 
 	}
 
 	@Override
-	public void send(Map<Datum, Iterator<SpaceTimePosition>> data) {
+	public <D extends Datum> void send(Class<D> type, D datum,
+			Iterator<SpaceTimePosition> trajectory) {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public <D extends Datum> void send(Class<D> type, Map<D, Iterator<SpaceTimePosition>> data) {
 		// TODO Auto-generated method stub
 
 	}
