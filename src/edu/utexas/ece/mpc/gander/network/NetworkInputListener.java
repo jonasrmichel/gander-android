@@ -1,5 +1,7 @@
 package edu.utexas.ece.mpc.gander.network;
 
+import edu.utexas.ece.mpc.stdata.rules.Rule;
+
 public interface NetworkInputListener {
 
 	/**
@@ -9,6 +11,8 @@ public interface NetworkInputListener {
 	 *            the MAC address of the sender.
 	 * @param data
 	 *            the received data object.
+	 * @param rules
+	 *            any rules associated with this data object.
 	 */
-	public <T> void receivedData(String source, T data);
+	public <T> void receivedData(String source, T data, Rule... rules);
 }

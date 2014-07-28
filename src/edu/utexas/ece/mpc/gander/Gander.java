@@ -3,6 +3,8 @@ package edu.utexas.ece.mpc.gander;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import android.content.Context;
 import android.location.Location;
@@ -14,7 +16,7 @@ import edu.utexas.ece.mpc.gander.adapters.IGraphAdapter;
 import edu.utexas.ece.mpc.gander.adapters.INetworkAdapter;
 import edu.utexas.ece.mpc.gander.location.LocationHelper;
 import edu.utexas.ece.mpc.gander.network.NetworkInputListener;
-import edu.utexas.ece.mpc.gander.network.NetworkOutput;
+import edu.utexas.ece.mpc.gander.network.NetworkIO;
 import edu.utexas.ece.mpc.stdata.IContextProvider;
 import edu.utexas.ece.mpc.stdata.INetworkProvider;
 import edu.utexas.ece.mpc.stdata.SpatiotemporalDatabase;
@@ -33,8 +35,8 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 	/** A delegate to make callbacks on. */
 	protected GanderDelegate mDelegate;
 
-	/** Network output interface. */
-	protected NetworkOutput mNetworkOutput;
+	/** Network I/O interface. */
+	protected NetworkIO mNetworkIO;
 
 	/** Map of network adapters for (de)serialization of network I/O. */
 	protected Map<Class, INetworkAdapter> mNetworkAdapters;
@@ -51,27 +53,38 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 	 */
 	protected SpatiotemporalDatabase mSTDB;
 
-	// TODO context update timertask (how often do we update our notion of space
-	// and time)
+	/** A timer to fire spatiotemporal contextual update tasks. */
+	private Timer mTimer;
 
 	public Gander(Context context, GanderDelegate delegate,
-			NetworkOutput networkOutput) {
+			long updateInterval, NetworkIO networkIO) {
 		mContext = context;
 		mDelegate = delegate;
 
-		mNetworkOutput = networkOutput;
-		mNetworkOutput.setNetworkInputListener(this);
-		mNetworkOutput.setNetworkAdapters(mNetworkAdapters);
+		mNetworkIO = networkIO;
+		mNetworkIO.setNetworkInputListener(this);
+		mNetworkIO.setNetworkAdapters(mNetworkAdapters);
 
 		mLocationHelper = LocationHelper.getInstance(context);
 
 		initializeSTDatabase();
+
+		// schedule periodic spatial temporal contextual updates
+		mTimer = new Timer();
+		mTimer.schedule(new TimerTask() {
+
+			@Override
+			public void run() {
+				mSTDB.updateSpatiotemporalContext();
+			}
+
+		}, updateInterval, updateInterval);
 	}
 
 	public Gander(Context context, GanderDelegate delegate,
-			NetworkOutput networkOutput, INetworkAdapter networkAdapter,
-			IGraphAdapter graphAdapter) {
-		this(context, delegate, networkOutput);
+			long updateInterval, NetworkIO networkOutput,
+			INetworkAdapter networkAdapter, IGraphAdapter graphAdapter) {
+		this(context, delegate, updateInterval, networkOutput);
 
 		if (networkAdapter != null)
 			addNetworkAdapter(networkAdapter);
@@ -81,9 +94,9 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 	}
 
 	public Gander(Context context, GanderDelegate delegate,
-			NetworkOutput networkOutput, INetworkAdapter[] networkAdapters,
-			IGraphAdapter[] graphAdapters) {
-		this(context, delegate, networkOutput);
+			long updateInterval, NetworkIO networkOutput,
+			INetworkAdapter[] networkAdapters, IGraphAdapter[] graphAdapters) {
+		this(context, delegate, updateInterval, networkOutput);
 
 		if (networkAdapters != null) {
 			for (INetworkAdapter adapter : networkAdapters)
@@ -101,6 +114,15 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 	 * Initializes the implementation-specific spatiotemporal graph database.
 	 */
 	protected abstract void initializeSTDatabase();
+
+	/**
+	 * Safely shuts everything down.
+	 */
+	public void shutdown() {
+		mTimer.cancel();
+		mNetworkIO.shutdown();
+		mSTDB.shutdown();
+	}
 
 	/**
 	 * Adds a network adapter.
@@ -141,7 +163,7 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 	 *            a piece of application data to send.
 	 */
 	public <T> void sendData(Class<T> type, T data) {
-		mNetworkOutput.sendData(type, data);
+		mNetworkIO.sendData(type, data);
 	}
 
 	/**
@@ -157,10 +179,7 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 	 */
 	public <T> void sendData(Class<T> type, T data, Rule... rules) {
 		// send the data
-		mNetworkOutput.sendData(type, data);
-
-		// store the data with its associated rule
-		storeData(type, data, rules);
+		mNetworkIO.sendData(type, data, rules);
 	}
 
 	/**
@@ -211,8 +230,11 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 	/* NetworkInputListener interface implementation */
 
 	@Override
-	public <T> void receivedData(String source, T data) {
+	public <T> void receivedData(String source, T data, Rule... rules) {
 		mDelegate.receivedData(source, data);
+
+		// TODO store this data in the graph database???
+		// TODO separate NetworkMessage components: metadata, payload, rule(s)
 	}
 
 	/* IContextProvider interface implementation */
@@ -244,13 +266,14 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 		Object data = adapter.deserialize(datum);
 
 		// TODO acquire spatiotemporal metadata?
-		
+
 		// send the data over the network
 		sendData(adapter.getApplicationDataType(), data);
 	}
 
 	@Override
-	public <D extends Datum> void send(Class<D> type, D datum, boolean attachTrajectory) {
+	public <D extends Datum> void send(Class<D> type, D datum,
+			boolean attachTrajectory) {
 		// TODO Auto-generated method stub
 
 	}
@@ -263,7 +286,8 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 	}
 
 	@Override
-	public <D extends Datum> void send(Class<D> type, Map<D, Iterator<SpaceTimePosition>> data) {
+	public <D extends Datum> void send(Class<D> type,
+			Map<D, Iterator<SpaceTimePosition>> data) {
 		// TODO Auto-generated method stub
 
 	}

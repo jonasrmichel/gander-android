@@ -1,5 +1,7 @@
 package edu.utexas.ece.mpc.gander.adapters;
 
+import edu.utexas.ece.mpc.gander.network.NetworkMessage;
+
 public interface INetworkAdapter<T, N> {
 
 	/**
@@ -19,19 +21,22 @@ public interface INetworkAdapter<T, N> {
 	/**
 	 * Serializes a piece of application data to network format.
 	 * 
-	 * @param appData
-	 *            the application data to serialize.
-	 * @return a serialized network data object.
+	 * @param message
+	 *            a network message containing a piece of application data to
+	 *            serialize.
+	 * @return a serialized message object in network format.
 	 */
-	public N serialize(T appData);
+	public N serialize(NetworkMessage<T> message);
 
 	/**
-	 * Deserializes a network data object into a piece of application data.
+	 * Deserializes a network format object into a network message containing a
+	 * piece of application data.
 	 * 
-	 * @param netData
-	 *            a network data object.
-	 * @return a deserialized piece of application data.
+	 * @param serializedMessage
+	 *            a network format object.
+	 * @return a deserialized network message containing a piece of application
+	 *         data.
 	 */
-	public T deserialize(N netData);
+	public NetworkMessage<T> deserialize(N serializedMessage);
 
 }
