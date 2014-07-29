@@ -4,6 +4,7 @@ import java.util.Map;
 
 import android.content.Context;
 import edu.utexas.ece.mpc.gander.adapters.INetworkAdapter;
+import edu.utexas.ece.mpc.gander.graph.SpaceTimePosition;
 import edu.utexas.ece.mpc.stdata.rules.Rule;
 
 public abstract class NetworkIO {
@@ -46,15 +47,20 @@ public abstract class NetworkIO {
 	 *            the type of the data to send.
 	 * @param data
 	 *            a piece of application data to send.
+	 * @param trajectory
+	 *            the application data object's associated spatiotemporal
+	 *            trajectory.
 	 * @param rules
 	 *            any rules associated with this piece of application data.
 	 */
-	public <T> void sendData(Class<T> type, T data, Rule... rules) {
+	public <T> void sendData(Class<T> type, T data,
+			SpaceTimePosition[] trajectory, Rule... rules) {
 		// lookup the network adapter for this type of data
 		INetworkAdapter adapter = mAdapters.get(type);
 
 		// serialize the data and send it over the network
-		sendData(adapter.serialize(new NetworkMessage<T>(data, rules)));
+		sendData(adapter.serialize(new NetworkMessage<T>(data, trajectory,
+				rules)));
 	}
 
 	/**
@@ -74,6 +80,6 @@ public abstract class NetworkIO {
 		NetworkMessage<T> message = adapter.deserialize(data);
 		mNetworkInputListener.receivedData(source,
 				adapter.getApplicationDataType(), message.getPayload(),
-				message.getRules());
+				message.getTrajectory(), message.getRules());
 	}
 }

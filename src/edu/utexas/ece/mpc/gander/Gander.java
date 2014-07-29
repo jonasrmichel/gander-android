@@ -9,25 +9,24 @@ import java.util.TimerTask;
 import android.content.Context;
 import android.location.Location;
 import android.os.Build;
-
-import com.tinkerpop.blueprints.Graph;
-
 import edu.utexas.ece.mpc.gander.adapters.IGraphAdapter;
 import edu.utexas.ece.mpc.gander.adapters.INetworkAdapter;
+import edu.utexas.ece.mpc.gander.graph.SpaceTimePosition;
 import edu.utexas.ece.mpc.gander.location.LocationHelper;
-import edu.utexas.ece.mpc.gander.network.NetworkInputListener;
 import edu.utexas.ece.mpc.gander.network.NetworkIO;
+import edu.utexas.ece.mpc.gander.network.NetworkInputListener;
+import edu.utexas.ece.mpc.gander.network.NetworkMessage;
 import edu.utexas.ece.mpc.stdata.IContextProvider;
 import edu.utexas.ece.mpc.stdata.INetworkProvider;
 import edu.utexas.ece.mpc.stdata.SpatiotemporalDatabase;
 import edu.utexas.ece.mpc.stdata.factories.VertexFrameFactory;
 import edu.utexas.ece.mpc.stdata.geo.Geoshape;
 import edu.utexas.ece.mpc.stdata.rules.Rule;
-import edu.utexas.ece.mpc.stdata.vertices.Datum;
-import edu.utexas.ece.mpc.stdata.vertices.SpaceTimePosition;
+import edu.utexas.ece.mpc.stdata.vertices.DatumVertex;
+import edu.utexas.ece.mpc.stdata.vertices.SpaceTimePositionVertex;
 
 public abstract class Gander implements IContextProvider, INetworkProvider,
-		NetworkInputListener {
+		NetworkInputListener, GanderDatabase {
 
 	/** An Android Context. */
 	protected Context mContext;
@@ -156,49 +155,48 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 	}
 
 	/**
-	 * Sends a typed piece of application data over the network.
+	 * Sends a typed piece of application data over the network and attaches any
+	 * number of rules to the data.
 	 * 
 	 * @param type
 	 *            the type of the application data.
 	 * @param data
 	 *            a piece of application data to send.
+	 * @param attachTrajectory
+	 *            if true, any spatiotemporal trajectory associated with this
+	 *            piece of data will be attached to the generated outgoing
+	 *            {@link NetworkMessage}.
+	 * @param rules
+	 *            rules to associate with the data.
 	 */
-	public <T> void sendData(Class<T> type, T data) {
-		mNetworkIO.sendData(type, data);
+	public <T> void sendData(Class<T> type, T data, boolean attachTrajectory,
+			Rule... rules) {
+		SpaceTimePosition[] trajectory = null;
+		if (attachTrajectory)
+			trajectory = SpaceTimePosition
+					.deserialize(getTrajectory(type, data));
+
+		mNetworkIO.sendData(type, data, trajectory, rules);
 	}
 
 	/**
 	 * Sends a typed piece of application data over the network and attaches any
-	 * number of unregistered rules to the data.
+	 * number of rules to the data.
 	 * 
 	 * @param type
 	 *            the type of the application data.
 	 * @param data
 	 *            a piece of application data to send.
+	 * @param trajectory
+	 *            the application data object's associated spatiotemporal
+	 *            metadata.
 	 * @param rules
-	 *            unregistered rules to associate with the data.
+	 *            rules to associate with the data.
 	 */
-	public <T> void sendData(Class<T> type, T data, Rule... rules) {
-		mNetworkIO.sendData(type, data, rules);
-	}
-
-	/**
-	 * Stores a typed piece of application data in the graph database.
-	 * 
-	 * @param type
-	 *            the type of the application data.
-	 * @param data
-	 *            a piece of application data to store.
-	 */
-	public <T, D> void storeData(Class<T> type, T data) {
-		// lookup the graph adapter associated with this data type
-		IGraphAdapter adapter = mGraphAdapters.get(type);
-
-		// create a graph instance of the data
-		adapter.serialize(data);
-
-		// commit changes
-		mSTDB.commit();
+	public <T> void sendData(Class<T> type, T data,
+			Iterator<SpaceTimePositionVertex> trajectory, Rule... rules) {
+		mNetworkIO.sendData(type, data,
+				SpaceTimePosition.deserialize(trajectory), rules);
 	}
 
 	/**
@@ -209,15 +207,19 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 	 *            the type of the application data.
 	 * @param data
 	 *            a piece of application data to store.
+	 * @param trajectory
+	 *            any spatiotemporal metadata associated with the application
+	 *            data object.
 	 * @param rules
 	 *            unregistered rules to associate with the data.
 	 */
-	public <T> void storeData(Class<T> type, T data, Rule... rules) {
+	public <T> void storeData(Class<T> type, T data,
+			SpaceTimePosition[] trajectory, Rule... rules) {
 		// lookup the graph adapter associated with this data type
 		IGraphAdapter adapter = mGraphAdapters.get(type);
 
 		// create a graph instance of the data with the associated rule
-		adapter.serialize(data, rules);
+		adapter.serialize(data, trajectory, rules);
 
 		// commit changes
 		mSTDB.commit();
@@ -239,10 +241,11 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 	/* NetworkInputListener interface implementation */
 
 	@Override
-	public <T> void receivedData(String source, Class<T> type, T data, Rule... rules) {
+	public <T> void receivedData(String source, Class<T> type, T data,
+			SpaceTimePosition[] trajectory, Rule... rules) {
 		// store this data in the graph database
-		storeData(type, data, rules);
-		
+		storeData(type, data, trajectory, rules);
+
 		// alert the delegate
 		mDelegate.receivedData(source, data);
 	}
@@ -268,43 +271,43 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 	/* INetworkProvider interface implementation */
 
 	@Override
-	public <D extends Datum> void send(Class<D> type, D datum) {
+	public <D extends DatumVertex> void send(Class<D> type, D datum,
+			boolean attachTrajectory, Rule... rules) {
 		// lookup the graph adapter associated with this graph data type
 		IGraphAdapter adapter = mGraphAdapters.get(type);
 
 		// deserialize the graph data into application data
 		Object data = adapter.deserialize(datum);
 
-		// TODO acquire spatiotemporal metadata?
+		// send the data over the network
+		sendData(adapter.getApplicationDataType(), data, false, rules);
+	}
+
+	@Override
+	public <D extends DatumVertex> void send(Class<D> type, D datum,
+			Iterator<SpaceTimePositionVertex> trajectory, Rule... rules) {
+		// lookup the graph adapter associated with this graph data type
+		IGraphAdapter adapter = mGraphAdapters.get(type);
+
+		// deserialize the graph data into application data
+		Object data = adapter.deserialize(datum);
 
 		// send the data over the network
-		sendData(adapter.getApplicationDataType(), data);
+		sendData(adapter.getApplicationDataType(), data, trajectory, rules);
 	}
+
+	/* GanderDatabase interface implementation */
 
 	@Override
-	public <D extends Datum> void send(Class<D> type, D datum,
-			boolean attachTrajectory) {
-		// TODO Auto-generated method stub
+	public <T, D extends DatumVertex> Iterator<SpaceTimePositionVertex> getTrajectory(
+			Class<T> type, T data) {
+		// lookup the graph adapter associated with this data type
+		IGraphAdapter adapter = mGraphAdapters.get(type);
 
+		// find the graph instance of the provided piece of application data
+		D datum = (D) adapter.find(data);
+
+		// return the spatiotemporal trajectory
+		return adapter.getTrajectory(datum);
 	}
-
-	@Override
-	public <D extends Datum> void send(Class<D> type, D datum,
-			Iterator<SpaceTimePosition> trajectory) {
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public <D extends Datum> void send(Class<D> type,
-			Map<D, Iterator<SpaceTimePosition>> data) {
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public void send(Graph graph) {
-		// TODO Auto-generated method stub
-	}
-
 }

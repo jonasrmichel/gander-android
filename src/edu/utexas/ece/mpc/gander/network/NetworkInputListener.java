@@ -1,6 +1,8 @@
 package edu.utexas.ece.mpc.gander.network;
 
+import edu.utexas.ece.mpc.gander.graph.SpaceTimePosition;
 import edu.utexas.ece.mpc.stdata.rules.Rule;
+import edu.utexas.ece.mpc.stdata.vertices.SpaceTimePositionVertex;
 
 public interface NetworkInputListener {
 
@@ -13,9 +15,11 @@ public interface NetworkInputListener {
 	 *            the type of the received data object.
 	 * @param data
 	 *            the received data object.
+	 * @param trajectory
+	 *            the data's spatiotemporal trajectory.
 	 * @param rules
 	 *            any rules associated with this data object.
 	 */
 	public <T> void receivedData(String source, Class<T> type, T data,
-			Rule... rules);
+			SpaceTimePosition[] trajectory, Rule... rules);
 }
