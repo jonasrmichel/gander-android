@@ -72,7 +72,8 @@ public abstract class NetworkIO {
 		INetworkAdapter adapter = mAdapters.get(type);
 
 		NetworkMessage<T> message = adapter.deserialize(data);
-		mNetworkInputListener.receivedData(source, message.getPayload(),
+		mNetworkInputListener.receivedData(source,
+				adapter.getApplicationDataType(), message.getPayload(),
 				message.getRules());
 	}
 }

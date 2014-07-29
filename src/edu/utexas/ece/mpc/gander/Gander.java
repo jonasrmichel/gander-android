@@ -76,6 +76,7 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 			@Override
 			public void run() {
 				mSTDB.updateSpatiotemporalContext();
+				mSTDB.commit();
 			}
 
 		}, updateInterval, updateInterval);
@@ -178,7 +179,6 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 	 *            unregistered rules to associate with the data.
 	 */
 	public <T> void sendData(Class<T> type, T data, Rule... rules) {
-		// send the data
 		mNetworkIO.sendData(type, data, rules);
 	}
 
@@ -196,6 +196,9 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 
 		// create a graph instance of the data
 		adapter.serialize(data);
+
+		// commit changes
+		mSTDB.commit();
 	}
 
 	/**
@@ -215,6 +218,9 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 
 		// create a graph instance of the data with the associated rule
 		adapter.serialize(data, rules);
+
+		// commit changes
+		mSTDB.commit();
 	}
 
 	/**
@@ -225,16 +231,20 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 	 */
 	public void registerRule(Rule rule) {
 		mSTDB.getRuleRegistry().registerRule(rule);
+
+		// commit changes
+		mSTDB.commit();
 	}
 
 	/* NetworkInputListener interface implementation */
 
 	@Override
-	public <T> void receivedData(String source, T data, Rule... rules) {
+	public <T> void receivedData(String source, Class<T> type, T data, Rule... rules) {
+		// store this data in the graph database
+		storeData(type, data, rules);
+		
+		// alert the delegate
 		mDelegate.receivedData(source, data);
-
-		// TODO store this data in the graph database???
-		// TODO separate NetworkMessage components: metadata, payload, rule(s)
 	}
 
 	/* IContextProvider interface implementation */
