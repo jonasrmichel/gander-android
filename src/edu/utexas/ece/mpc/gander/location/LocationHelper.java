@@ -148,15 +148,15 @@ public class LocationHelper {
 	/**
 	 * Starts listening to location updates
 	 */
-	public void registerLocationListener() {
+	public void registerLocationListener(long minUpdateInterval) {
 		try {
 			if ((mLocationManager != null) && (mLocationListener != null)) {
 				mLocationManager.requestLocationUpdates(
-						LocationManager.GPS_PROVIDER, 10000, 10,
+						LocationManager.GPS_PROVIDER, minUpdateInterval, 10,
 						mLocationListener);
 				mLocationManager.requestLocationUpdates(
-						LocationManager.NETWORK_PROVIDER, 10000, 50,
-						mLocationListener);
+						LocationManager.NETWORK_PROVIDER, minUpdateInterval,
+						50, mLocationListener);
 			}
 		} catch (Exception e) {
 			Log.i(TAG, "Can't request location Updates: " + e.toString());
@@ -177,7 +177,23 @@ public class LocationHelper {
 		} catch (IllegalArgumentException e) {
 			Log.i(TAG, "Can't unregister location listener: " + e.toString());
 			return;
+		} finally {
+			count = 0;
 		}
 	}
 
+	/**
+	 * Returns true if latitude is in the range [-90, +90] and longitude is in
+	 * the range [-180, +180].
+	 * 
+	 * @param latitude
+	 *            latitude in degrees.
+	 * @param longitude
+	 *            longitude in degrees.
+	 * @return true if latitude and longitude are valid, false otherwise.
+	 */
+	public static boolean validCoordinates(double latitude, double longitude) {
+		return latitude <= 90 && latitude >= -90 && longitude <= 180
+				&& longitude >= -180;
+	}
 }

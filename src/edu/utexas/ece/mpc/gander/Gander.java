@@ -9,6 +9,7 @@ import java.util.TimerTask;
 import android.content.Context;
 import android.location.Location;
 import android.os.Build;
+import android.util.Log;
 import edu.utexas.ece.mpc.gander.adapters.IGraphAdapter;
 import edu.utexas.ece.mpc.gander.adapters.INetworkAdapter;
 import edu.utexas.ece.mpc.gander.graph.SpaceTimePosition;
@@ -50,7 +51,7 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 	 * The spatiotemporal graph database used for facilitating remote
 	 * device-to-device searches.
 	 */
-	protected SpatiotemporalDatabase mSTDB;
+	protected SpatiotemporalDatabase mSTDB = null;
 
 	/** A timer to fire spatiotemporal contextual update tasks. */
 	private Timer mTimer;
@@ -60,25 +61,35 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 		mContext = context;
 		mDelegate = delegate;
 
+		mNetworkAdapters = new HashMap<Class, INetworkAdapter>();
+		mGraphAdapters = new HashMap<Class, IGraphAdapter>();
+
 		mNetworkIO = networkIO;
 		mNetworkIO.setNetworkInputListener(this);
 		mNetworkIO.setNetworkAdapters(mNetworkAdapters);
 
 		mLocationHelper = LocationHelper.getInstance(context);
+		mLocationHelper.registerLocationListener(updateInterval);
 
 		initializeSTDatabase();
 
 		// schedule periodic spatial temporal contextual updates
-		mTimer = new Timer();
-		mTimer.schedule(new TimerTask() {
+		if (updateInterval > 0) {
+			mTimer = new Timer();
+			mTimer.schedule(new TimerTask() {
 
-			@Override
-			public void run() {
-				mSTDB.updateSpatiotemporalContext();
-				mSTDB.commit();
-			}
+				@Override
+				public void run() {
+					if (mLocationHelper.getCount() == 0)
+						return; // no location fix yet
+					
+					// update the database's spatiotemporal context
+					mSTDB.updateSpatiotemporalContext();
+					mSTDB.commit();
+				}
 
-		}, updateInterval, updateInterval);
+			}, 0, updateInterval);
+		}
 	}
 
 	public Gander(Context context, GanderDelegate delegate,
@@ -120,6 +131,7 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 	 */
 	public void shutdown() {
 		mTimer.cancel();
+		mLocationHelper.unRegisterLocationListener();
 		mNetworkIO.shutdown();
 		mSTDB.shutdown();
 	}
@@ -131,9 +143,6 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 	 *            a network adapter.
 	 */
 	public void addNetworkAdapter(INetworkAdapter adapter) {
-		if (mNetworkAdapters == null)
-			mNetworkAdapters = new HashMap<Class, INetworkAdapter>();
-
 		// insert a reference to the adapter for each adapter type so it may be
 		// looked up by both
 		mNetworkAdapters.put(adapter.getApplicationDataType(), adapter);
@@ -141,9 +150,6 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 	}
 
 	public void addGraphAdapter(IGraphAdapter adapter) {
-		if (mGraphAdapters == null)
-			mGraphAdapters = new HashMap<Class, IGraphAdapter>();
-
 		// insert a reference to the adapter for each adapter type so it may be
 		// looked up by both
 		mGraphAdapters.put(adapter.getApplicationDataType(), adapter);
