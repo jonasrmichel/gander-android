@@ -20,6 +20,7 @@ import edu.utexas.ece.mpc.gander.network.NetworkMessage;
 import edu.utexas.ece.mpc.stdata.IContextProvider;
 import edu.utexas.ece.mpc.stdata.INetworkProvider;
 import edu.utexas.ece.mpc.stdata.SpatiotemporalDatabase;
+import edu.utexas.ece.mpc.stdata.factories.DatumFactory;
 import edu.utexas.ece.mpc.stdata.factories.VertexFrameFactory;
 import edu.utexas.ece.mpc.stdata.geo.Geoshape;
 import edu.utexas.ece.mpc.stdata.rules.Rule;
@@ -82,7 +83,7 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 				public void run() {
 					if (mLocationHelper.getCount() == 0)
 						return; // no location fix yet
-					
+
 					// update the database's spatiotemporal context
 					mSTDB.updateSpatiotemporalContext();
 					mSTDB.commit();
@@ -137,6 +138,13 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 	}
 
 	/**
+	 * Commits the current transaction.
+	 */
+	public void commit() {
+		mSTDB.commit();
+	}
+
+	/**
 	 * Adds a network adapter.
 	 * 
 	 * @param adapter
@@ -156,8 +164,8 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 		mGraphAdapters.put(adapter.getGraphDataType(), adapter);
 
 		// add the adapter's factory to the graph database
-		mSTDB.addVertexFrameFactory(adapter.getGraphDataType(),
-				(VertexFrameFactory) adapter);
+		mSTDB.addDatumFrameFactory(adapter.getGraphDataType(),
+				(DatumFactory) adapter);
 	}
 
 	/**
@@ -228,7 +236,7 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 		adapter.serialize(data, trajectory, rules);
 
 		// commit changes
-		mSTDB.commit();
+		 mSTDB.commit();
 	}
 
 	/**
@@ -241,7 +249,7 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 		mSTDB.getRuleRegistry().registerRule(rule);
 
 		// commit changes
-		mSTDB.commit();
+		 mSTDB.commit();
 	}
 
 	/* NetworkInputListener interface implementation */
