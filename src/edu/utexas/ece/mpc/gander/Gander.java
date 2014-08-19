@@ -10,6 +10,9 @@ import android.content.Context;
 import android.location.Location;
 import android.os.Build;
 import android.util.Log;
+
+import com.tinkerpop.frames.VertexFrame;
+
 import edu.utexas.ece.mpc.gander.adapters.IGraphAdapter;
 import edu.utexas.ece.mpc.gander.adapters.INetworkAdapter;
 import edu.utexas.ece.mpc.gander.graph.SpaceTimePosition;
@@ -29,6 +32,8 @@ import edu.utexas.ece.mpc.stdata.vertices.SpaceTimePositionVertex;
 
 public abstract class Gander implements IContextProvider, INetworkProvider,
 		NetworkInputListener, GanderDatabase {
+
+	public static final String TAG = Gander.class.getSimpleName();
 
 	/** An Android Context. */
 	protected Context mContext;
@@ -81,10 +86,13 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 
 				@Override
 				public void run() {
-					if (mLocationHelper.getCount() == 0)
-						return; // no location fix yet
+					// if (mLocationHelper.getCount() == 0)
+					// return; // no location fix yet
+
+					Log.d(TAG, "updating spatiotemporal context");
 
 					// update the database's spatiotemporal context
+					// this will trigger all space and time modulated rules
 					mSTDB.updateSpatiotemporalContext();
 					mSTDB.commit();
 				}
@@ -236,20 +244,23 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 		adapter.serialize(data, trajectory, rules);
 
 		// commit changes
-		 mSTDB.commit();
+		mSTDB.commit();
 	}
 
 	/**
 	 * Registers a new rule with the graph database.
 	 * 
-	 * @param rules
+	 * @param type
+	 *            the graph type of the data the rule will govern.
+	 * @param rule
 	 *            the rule to register.
 	 */
-	public void registerRule(Rule rule) {
+	public <V extends VertexFrame> void registerRule(Class<V> type, Rule rule) {
+		// register the rule
 		mSTDB.getRuleRegistry().registerRule(rule);
 
 		// commit changes
-		 mSTDB.commit();
+		mSTDB.commit();
 	}
 
 	/* NetworkInputListener interface implementation */
@@ -258,7 +269,7 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 	public <T> void receivedData(String source, Class<T> type, T data,
 			SpaceTimePosition[] trajectory, Rule... rules) {
 		// store this data in the graph database
-		storeData(type, data, trajectory, rules);
+		// storeData(type, data, trajectory, rules);
 
 		// alert the delegate
 		mDelegate.receivedData(source, data);
@@ -269,7 +280,10 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 	@Override
 	public Geoshape getLocation() {
 		Location loc = mLocationHelper.getLocation();
-		return Geoshape.point(loc.getLatitude(), loc.getLongitude());
+		if (loc != null)
+			return Geoshape.point(loc.getLatitude(), loc.getLongitude());
+		else
+			return null;
 	}
 
 	@Override
