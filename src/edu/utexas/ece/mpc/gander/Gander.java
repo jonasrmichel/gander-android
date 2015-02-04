@@ -89,8 +89,6 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 					// if (mLocationHelper.getCount() == 0)
 					// return; // no location fix yet
 
-					Log.d(TAG, "updating spatiotemporal context");
-
 					// update the database's spatiotemporal context
 					// this will trigger all space and time modulated rules
 					mSTDB.updateSpatiotemporalContext();
@@ -269,7 +267,7 @@ public abstract class Gander implements IContextProvider, INetworkProvider,
 	public <T> void receivedData(String source, Class<T> type, T data,
 			SpaceTimePosition[] trajectory, Rule... rules) {
 		// store this data in the graph database
-		// storeData(type, data, trajectory, rules);
+		storeData(type, data, trajectory, rules);
 
 		// alert the delegate
 		mDelegate.receivedData(source, data);
